@@ -1,0 +1,719 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Price & Product Scraper — CapSolver + Schedule + Webhook\n\n### How it works\n- Triggered by scheduleTrigger\n- Triggered by webhook\n- Sets: websiteURL, websiteKey\n- CapSolver: Cloudflare Turnstile\n- HTTP Request: Fetch product page\n- HTML: Extract data\n- Code: Compare data\n- Conditional branch\n- Sets: alert, severity, checkedAt\n- Sets: status, currentPrice, checkedAt\n- Respond to webhook\n\n### Setup\n- Add your **CapSolver** API key under Settings → Credentials\n- Configure placeholder values\n- Activate the workflow",
+        "height": 608,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        -160
+      ],
+      "id": "b5976b58-4e25-4db2-8968-b918d51ae3db",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Scheduled Scraping Execution\n\nSolves Turnstile, fetches product page, extracts and compares data for scheduled trigger.",
+        "height": 464,
+        "width": 1456,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -272
+      ],
+      "id": "81ae9453-8fac-49c8-906e-f6054a1d5311",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Webhook Scraping Setup\n\nInitiates scraping process via webhook trigger and solves Turnstile.",
+        "height": 304,
+        "width": 528,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        304
+      ],
+      "id": "5b9d6820-6036-43d4-8d47-1c207864256e",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Webhook Scraping Execution\n\nFetches product page, extracts and compares data, and responds to webhook.",
+        "height": 496,
+        "width": 1520,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        224
+      ],
+      "id": "4260afbb-4a3a-4a18-9d01-f3724c390d4e",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -704,
+        -32
+      ],
+      "id": "ts-s-901",
+      "name": "Every 6 Hours"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-001",
+              "name": "websiteURL",
+              "value": "https://YOUR-TARGET-SITE.com/product-page",
+              "type": "string"
+            },
+            {
+              "id": "cfg-002",
+              "name": "websiteKey",
+              "value": "YOUR_SITE_KEY_HERE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        -32
+      ],
+      "id": "ts-s-900",
+      "name": "Set Target Config [Schedule]"
+    },
+    {
+      "parameters": {
+        "operation": "Cloudflare Turnstile",
+        "websiteURL": "={{ $json.websiteURL }}",
+        "websiteKey": "={{ $json.websiteKey }}",
+        "optional": {}
+      },
+      "type": "n8n-nodes-capsolver.capSolver",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        0
+      ],
+      "id": "ts-s-902",
+      "name": "Solve Turnstile",
+      "credentials": {
+        "capSolverApi": {
+          "id": "BeBFMAsySMsMGeE9",
+          "name": "CapSolver account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\'Set Target Config [Schedule]\').first().json.websiteURL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "cf-turnstile-response",
+              "value": "={{ $json.data.solution.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {}
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ts-s-903",
+      "name": "Fetch Product Page"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "price",
+              "cssSelector": ".product-price, [data-price], .price"
+            },
+            {
+              "key": "productName",
+              "cssSelector": "h1, .product-title"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        512,
+        0
+      ],
+      "id": "ts-s-904",
+      "name": "Extract Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $workflow.staticData;\nconst currentPrice = $input.first().json.price;\nconst previousPrice = staticData.lastPrice;\nconst productName = $input.first().json.productName || \'Product\';\nconst parsePrice = (str) => { if (!str) return null; const match = str.match(/[\\d,]+\\.?\\d*/); return match ? parseFloat(match[0].replace(\'\', \'\')) : null; };\nconst currentNum = parsePrice(currentPrice);\nconst previousNum = parsePrice(previousPrice);\nstaticData.lastPrice = currentPrice;\nstaticData.lastChecked = new Date().toISOString();\nconst changed = previousNum !== null && currentNum !== null && currentNum !== previousNum;\nconst direction = changed ? (currentNum < previousNum ? \'dropped\' : \'increased\') : \'unchanged\';\nconst diff = changed ? Math.abs(currentNum - previousNum).toFixed(2) : \'0\';\nreturn [{ json: { productName, currentPrice, previousPrice: previousPrice || \'first check\', changed, direction, diff: changed ? `\$${\n diff}` : null, checkedAt: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        0
+      ],
+      "id": "ts-s-905",
+      "name": "Compare Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-1",
+              "leftValue": "={{ $json.changed }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        0
+      ],
+      "id": "ts-s-906",
+      "name": "Data Changed?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "alert",
+              "value": "=Price {{ $json.direction }} for {{ $json.productName }}: {{ $json.previousPrice }} → {{ $json.currentPrice }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "severity",
+              "value": "={{ $json.direction === \'dropped\' ? \'deal\' : \'info\' }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "checkedAt",
+              "value": "={{ $json.checkedAt }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1152,
+        -192
+      ],
+      "id": "ts-s-907",
+      "name": "Build Alert"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "n1",
+              "name": "status",
+              "value": "no_change",
+              "type": "string"
+            },
+            {
+              "id": "n2",
+              "name": "currentPrice",
+              "value": "={{ $json.currentPrice }}",
+              "type": "string"
+            },
+            {
+              "id": "n3",
+              "name": "checkedAt",
+              "value": "={{ $json.checkedAt }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        32
+      ],
+      "id": "ts-s-908",
+      "name": "No Change"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "price-monitor-turnstile",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -704,
+        432
+      ],
+      "id": "ts-s-909",
+      "name": "Webhook Trigger",
+      "webhookId": "28b7ba21-7608-45c2-8552-ec91b8ce7c9b"
+    },
+    {
+      "parameters": {
+        "operation": "Cloudflare Turnstile",
+        "websiteURL": "={{ $json.body.websiteURL }}",
+        "websiteKey": "={{ $json.body.websiteKey }}",
+        "optional": {}
+      },
+      "type": "n8n-nodes-capsolver.capSolver",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        432
+      ],
+      "id": "ts-s-910",
+      "name": "Solve Turnstile [Webhook]",
+      "credentials": {
+        "capSolverApi": {
+          "id": "BeBFMAsySMsMGeE9",
+          "name": "CapSolver account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\'Webhook Trigger\').item.json.body.websiteURL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "cf-turnstile-response",
+              "value": "={{ $json.data.solution.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {}
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -80,
+        432
+      ],
+      "id": "ts-s-911",
+      "name": "Fetch Product Page [Webhook]"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "price",
+              "cssSelector": ".product-price, [data-price], .price"
+            },
+            {
+              "key": "productName",
+              "cssSelector": "h1, .product-title"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        432
+      ],
+      "id": "ts-s-912",
+      "name": "Extract Data [Webhook]"
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $workflow.staticData;\nconst currentPrice = $input.first().json.price;\nconst previousPrice = staticData.lastPrice;\nconst productName = $input.first().json.productName || \'Product\';\nconst parsePrice = (str) => { if (!str) return null; const match = str.match(/[\\d,]+\\.?\\d*/); return match ? parseFloat(match[0].replace(\'\', \'\')) : null; };\nconst currentNum = parsePrice(currentPrice);\nconst previousNum = parsePrice(previousPrice);\nstaticData.lastPrice = currentPrice;\nstaticData.lastChecked = new Date().toISOString();\nconst changed = previousNum !== null && currentNum !== null && currentNum !== previousNum;\nconst direction = changed ? (currentNum < previousNum ? \'dropped\' : \'increased\') : \'unchanged\';\nconst diff = changed ? Math.abs(currentNum - previousNum).toFixed(2) : \'0\';\nreturn [{ json: { productName, currentPrice, previousPrice: previousPrice || \'first check\', changed, direction, diff: changed ? `\$${\n diff}` : null, checkedAt: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        432
+      ],
+      "id": "ts-s-913",
+      "name": "Compare Data [Webhook]"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-2",
+              "leftValue": "={{ $json.changed }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        432
+      ],
+      "id": "ts-s-914",
+      "name": "Data Changed? [Webhook]"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a4",
+              "name": "alert",
+              "value": "=Price {{ $json.direction }} for {{ $json.productName }}: {{ $json.previousPrice }} → {{ $json.currentPrice }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "severity",
+              "value": "={{ $json.direction === \'dropped\' ? \'deal\' : \'info\' }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "checkedAt",
+              "value": "={{ $json.checkedAt }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        240
+      ],
+      "id": "ts-s-915",
+      "name": "Build Alert [Webhook]"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "n4",
+              "name": "status",
+              "value": "no_change",
+              "type": "string"
+            },
+            {
+              "id": "n5",
+              "name": "currentPrice",
+              "value": "={{ $json.currentPrice }}",
+              "type": "string"
+            },
+            {
+              "id": "n6",
+              "name": "checkedAt",
+              "value": "={{ $json.checkedAt }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        992,
+        496
+      ],
+      "id": "ts-s-916",
+      "name": "No Change [Webhook]"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        384
+      ],
+      "id": "ts-s-917",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Set Target Config [Schedule]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Target Config [Schedule]": {
+      "main": [
+        [
+          {
+            "node": "Solve Turnstile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solve Turnstile": {
+      "main": [
+        [
+          {
+            "node": "Fetch Product Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Product Page": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Compare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Data": {
+      "main": [
+        [
+          {
+            "node": "Data Changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Changed?": {
+      "main": [
+        [
+          {
+            "node": "Build Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Solve Turnstile [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solve Turnstile [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Fetch Product Page [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Product Page [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Extract Data [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Compare Data [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Data [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Data Changed? [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Changed? [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Build Alert [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Change [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Alert [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Change [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "962ff0267b713be0344b866fa54daae28de8ed2144e2e6867da355dae193ea1f"
+  }
+}

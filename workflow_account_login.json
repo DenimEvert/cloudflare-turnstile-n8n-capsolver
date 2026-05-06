@@ -1,0 +1,629 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Turnstile Account Login — CapSolver + Schedule + Webhook\n\n### How it works\n- Triggered by scheduleTrigger\n- Triggered by webhook\n- Sets: websiteURL, websiteKey, successMarker\n- CapSolver: Cloudflare Turnstile\n- POST request\n- Conditional branch\n- Sets: status, checkedAt\n\n### Setup\n- Add your **CapSolver** API key under Settings → Credentials\n- Configure placeholder values\n- Activate the workflow",
+        "height": 768,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1168,
+        -128
+      ],
+      "id": "887d0c97-af49-4830-99a3-8dd04a78ec10",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Scheduled Login Process\n\nHandles login process triggered every 24 hours",
+        "height": 416,
+        "width": 1920,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -128
+      ],
+      "id": "3fac5b95-ad9c-4029-ac4b-c99952659970",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Webhook Triggered Login Process\n\nHandles login process triggered by a webhook",
+        "height": 384,
+        "width": 2288,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        336
+      ],
+      "id": "08fa3f86-8373-44ab-abb1-1358cbb3f963",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -560,
+        48
+      ],
+      "id": "ts-l-01",
+      "name": "Every 24 Hours"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "l1",
+              "name": "websiteURL",
+              "value": "https://YOUR-TARGET-SITE.com/login",
+              "type": "string"
+            },
+            {
+              "id": "l2",
+              "name": "websiteKey",
+              "value": "YOUR_SITE_KEY_HERE",
+              "type": "string"
+            },
+            {
+              "id": "l3",
+              "name": "successMarker",
+              "value": "account-dashboard",
+              "type": "string"
+            },
+            {
+              "id": "l4",
+              "name": "userAgent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -240,
+        48
+      ],
+      "id": "ts-l-02",
+      "name": "Set Login Config [Schedule]"
+    },
+    {
+      "parameters": {
+        "operation": "Cloudflare Turnstile",
+        "websiteURL": "={{ $json.websiteURL }}",
+        "websiteKey": "={{ $json.websiteKey }}",
+        "optional": {}
+      },
+      "type": "n8n-nodes-capsolver.capSolver",
+      "typeVersion": 1,
+      "position": [
+        256,
+        48
+      ],
+      "id": "ts-l-03",
+      "name": "Solve Turnstile [Schedule]",
+      "credentials": {
+        "capSolverApi": {
+          "id": "BeBFMAsySMsMGeE9",
+          "name": "CapSolver account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\'Set Login Config [Schedule]\').item.json.websiteURL }}/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/x-www-form-urlencoded"
+            },
+            {
+              "name": "user-agent",
+              "value": "={{ $(\'Set Login Config [Schedule]\').item.json.userAgent }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "your-email@example.com"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_ACCOUNT_PASSWORD"
+            },
+            {
+              "name": "cf-turnstile-response",
+              "value": "={{ $json.data.solution.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        576,
+        48
+      ],
+      "id": "ts-l-04",
+      "name": "Submit Login [Schedule]"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "lif1",
+              "leftValue": "={{ $json.statusCode < 400 && String($json.body || $json.data || \'\').includes($(\'Set Login Config [Schedule]\').item.json.successMarker) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        48
+      ],
+      "id": "ts-l-05",
+      "name": "Login OK? [Schedule]"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "checkedAt",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        -48
+      ],
+      "id": "ts-l-06",
+      "name": "Mark Success"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "status",
+              "value": "failed",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "statusCode",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "f3",
+              "name": "checkedAt",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        128
+      ],
+      "id": "ts-l-07",
+      "name": "Mark Failed"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "account-login-turnstile",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -560,
+        448
+      ],
+      "id": "ts-l-08",
+      "name": "Webhook Trigger",
+      "webhookId": "9c7a53a4-d3ee-495b-9381-3a9425bb1b36"
+    },
+    {
+      "parameters": {
+        "operation": "Cloudflare Turnstile",
+        "websiteURL": "={{ $json.body.websiteURL }}",
+        "websiteKey": "={{ $json.body.websiteKey }}",
+        "optional": {}
+      },
+      "type": "n8n-nodes-capsolver.capSolver",
+      "typeVersion": 1,
+      "position": [
+        256,
+        448
+      ],
+      "id": "ts-l-09",
+      "name": "Solve Turnstile [Webhook]",
+      "credentials": {
+        "capSolverApi": {
+          "id": "BeBFMAsySMsMGeE9",
+          "name": "CapSolver account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\'Webhook Trigger\').item.json.body.loginActionURL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/x-www-form-urlencoded"
+            },
+            {
+              "name": "user-agent",
+              "value": "={{ $(\'Webhook Trigger\').item.json.body.userAgent || \'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36\' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "={{ $(\'Webhook Trigger\').item.json.body.usernameField || \'email\' }}",
+              "value": "={{ $(\'Webhook Trigger\').item.json.body.usernameValue }}"
+            },
+            {
+              "name": "={{ $(\'Webhook Trigger\').item.json.body.passwordField || \'password\' }}",
+              "value": "={{ $(\'Webhook Trigger\').item.json.body.passwordValue }}"
+            },
+            {
+              "name": "cf-turnstile-response",
+              "value": "={{ $json.data.solution.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        576,
+        448
+      ],
+      "id": "ts-l-10",
+      "name": "Submit Login [Webhook]"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "lif2",
+              "leftValue": "={{ $json.statusCode < 400 && String($json.body || $json.data || \'\').includes($(\'Webhook Trigger\').item.json.body.successMarker) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        448
+      ],
+      "id": "ts-l-11",
+      "name": "Login OK? [Webhook]"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ws1",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "ws2",
+              "name": "checkedAt",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        352
+      ],
+      "id": "ts-l-12",
+      "name": "Mark Success [W]"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "wf1",
+              "name": "status",
+              "value": "failed",
+              "type": "string"
+            },
+            {
+              "id": "wf2",
+              "name": "statusCode",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "wf3",
+              "name": "checkedAt",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        544
+      ],
+      "id": "ts-l-13",
+      "name": "Mark Failed [W]"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1504,
+        448
+      ],
+      "id": "ts-l-14",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Every 24 Hours": {
+      "main": [
+        [
+          {
+            "node": "Set Login Config [Schedule]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Login Config [Schedule]": {
+      "main": [
+        [
+          {
+            "node": "Solve Turnstile [Schedule]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solve Turnstile [Schedule]": {
+      "main": [
+        [
+          {
+            "node": "Submit Login [Schedule]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Login [Schedule]": {
+      "main": [
+        [
+          {
+            "node": "Login OK? [Schedule]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login OK? [Schedule]": {
+      "main": [
+        [
+          {
+            "node": "Mark Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Solve Turnstile [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solve Turnstile [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Submit Login [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Login [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Login OK? [Webhook]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login OK? [Webhook]": {
+      "main": [
+        [
+          {
+            "node": "Mark Success [W]",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed [W]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Success [W]": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Failed [W]": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "962ff0267b713be0344b866fa54daae28de8ed2144e2e6867da355dae193ea1f"
+  }
+}

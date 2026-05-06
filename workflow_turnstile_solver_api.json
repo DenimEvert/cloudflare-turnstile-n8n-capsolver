@@ -1,0 +1,213 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Turnstile — Solver API\n\n### How it works\n- Triggered by webhook\n- CapSolver: Cloudflare Turnstile\n- Conditional branch\n- Respond to webhook\n- Respond to webhook\n\n### Setup\n- Add your **CapSolver** API key under Settings → Credentials\n- Configure placeholder values\n- Activate the workflow",
+        "height": 448,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        -176
+      ],
+      "id": "5ffd9cef-8202-4382-b878-6c99193e85c9",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Receive and Process Solver Request\n\nHandles incoming solver requests and processes them through Cloudflare Turnstile.",
+        "height": 336,
+        "width": 496,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -176
+      ],
+      "id": "6ad0812b-7141-41e4-96d6-e72e08a24405",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Evaluate Solver Response\n\nChecks for errors in the solver response and directs the flow accordingly.",
+        "height": 336,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -176
+      ],
+      "id": "8839e65a-8735-4135-9b0f-07ac081ebd70",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Respond to Webhook\n\nSends a response back to the webhook based on the solver's success or failure.",
+        "height": 528,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -256
+      ],
+      "id": "2fec67ea-a216-4717-8336-2aa060c352ab",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "solver-turnstile",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -192,
+        0
+      ],
+      "id": "137be4f0-1762-4f0c-b993-c512d27e35de",
+      "name": "Receive Solver Request",
+      "webhookId": "901bdfa1-308c-4145-87fb-9c1958914751"
+    },
+    {
+      "parameters": {
+        "operation": "Cloudflare Turnstile",
+        "websiteURL": "={{ $json.body.websiteURL }}",
+        "websiteKey": "={{ $json.body.websiteKey }}",
+        "optional": {}
+      },
+      "type": "n8n-nodes-capsolver.capSolver",
+      "typeVersion": 1,
+      "position": [
+        112,
+        0
+      ],
+      "id": "6074127c-336c-4464-9691-032049163234",
+      "name": "Cloudflare Turnstile",
+      "credentials": {
+        "capSolverApi": {
+          "id": "BeBFMAsySMsMGeE9",
+          "name": "CapSolver account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-1",
+              "leftValue": "={{ $json.error }}",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "1610444d-1762-4752-a273-030800660308",
+      "name": "CapSolver Error?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: $json.error }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        704,
+        -96
+      ],
+      "id": "6324204d-2222-4464-9691-032049163234",
+      "name": "Respond to Webhook (Error)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.data) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        704,
+        96
+      ],
+      "id": "6324204d-2222-4464-9691-032049163235",
+      "name": "Respond to Webhook (Success)"
+    }
+  ],
+  "connections": {
+    "Receive Solver Request": {
+      "main": [
+        [
+          {
+            "node": "Cloudflare Turnstile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloudflare Turnstile": {
+      "main": [
+        [
+          {
+            "node": "CapSolver Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CapSolver Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Error)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook (Success)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "962ff0267b713be0344b866fa54daae28de8ed2144e2e6867da355dae193ea1f"
+  }
+}
